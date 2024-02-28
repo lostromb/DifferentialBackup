@@ -6,4 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Durandal.AI" Version="22.0.4596" />
+    <PackageReference Include="Durandal.AI.Extensions.Compression" Version="22.0.4596" />
+    <PackageReference Include="Durandal.AI.NonPortable" Version="22.0.4596" />
+    <PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
+  </ItemGroup>
+
 </Project>

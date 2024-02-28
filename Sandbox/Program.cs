@@ -3,6 +3,7 @@ namespace Sandbox
 {
     using DiffBackup.File;
     using DiffBackup.Math;
+    using DiffBackup.Schemas;
     using Durandal.API;
     using Durandal.Common.Instrumentation;
     using Durandal.Common.IO;
@@ -42,7 +43,17 @@ namespace Sandbox
             ILogger logger = new ConsoleLogger();
             
             Dictionary<string, StatisticalSet> compressionRatioStats = new Dictionary<string, StatisticalSet>();
-            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"E:\Data"), logger, compressionRatioStats);
+            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"S:\Documents"), logger, compressionRatioStats);
+            Console.WriteLine("Final statistics:");
+            foreach (var fileType in compressionRatioStats)
+            {
+                Console.WriteLine("{0:F4} {1:F4} {2} \"{3}\" {4}",
+                    fileType.Value.Mean,
+                    fileType.Value.StandardDeviation,
+                    fileType.Value.SampleCount,
+                    fileType.Key,
+                    fileType.Value.GetCompressionSuitability());
+            }
 
             //using (SemaphoreSlim diskIoSemaphore = new SemaphoreSlim(FILE_IO_PARALLELISM))
             //{
@@ -252,11 +263,16 @@ namespace Sandbox
                         compressionStats.Add(fileExt, statsForThisFileType);
                     }
 
-                    double ratio = GetZstCompressionRatio(file);
-                    statsForThisFileType.Add(ratio);
-                    logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
-                        "{0:F4} {1:F4} \"{2}\"", 
-                        statsForThisFileType.Mean, statsForThisFileType.StandardDeviation, fileExt);
+                    // Do we need to update the ratio?
+                    FileTypeCompressibility suitability = statsForThisFileType.GetCompressionSuitability();
+                    if (suitability == FileTypeCompressibility.Unknown)
+                    {
+                        double ratio = GetZstCompressionRatio(file);
+                        statsForThisFileType.Add(ratio);
+                        logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
+                            "{0:F4} {1:F4} \"{2}\"",
+                            statsForThisFileType.Mean, statsForThisFileType.StandardDeviation, fileExt);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -304,7 +320,7 @@ namespace Sandbox
                 }
 
                 using (Stream compressor = ZStandardCodec.CreateCompressorStream(
-                    outputScratch, NullLogger.Singleton, compressionLevel: 4, isolateInnerStream: true))
+                    outputScratch, NullLogger.Singleton, compressionLevel: 6, isolateInnerStream: true))
                 {
                     inputStreamWrapper.CopyToPooled(compressor);
                 }

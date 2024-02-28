@@ -111,59 +111,49 @@ namespace DiffBackup.Math
         }
 
         /// <summary>
-        /// Adds an enumerable set of samples to this sample set.
+        /// Adds a collection of samples to this sample set.
         /// If the input is an array of values, use the array method signature for better performance.
         /// </summary>
-        /// <param name="samples">The <see cref="IEnumerable{double}"/> of samples to add.</param>
-        public void Add(IEnumerable<double> samples)
+        /// <param name="samples">The <see cref="IReadOnlyCollection{double}"/> of samples to add.</param>
+        public void Add(IReadOnlyCollection<double>? samples)
         {
+            if (samples == null)
+            {
+                throw new ArgumentNullException(nameof(samples));
+            }
+
+            if (samples.Count == 0)
+            {
+                return;
+            }
+
+            // Validate all input values in advance so we're not left in an inconsistent state
+            foreach (double sample in samples)
+            {
+                if (double.IsNaN(sample))
+                {
+                    throw new ArgumentException("Numeric sample cannot be NaN", nameof(sample));
+                }
+
+                if (double.IsInfinity(sample))
+                {
+                    throw new ArgumentException("Numeric sample must be a finite number", nameof(sample));
+                }
+            }
+
             lock (_samples)
             {
-                try
+                double sumOfAllNewSamples = 0;
+                int originalSampleSize = _samples.Count;
+                _samples.AddRange(samples);
+                foreach (double sample in samples)
                 {
-                    double sumOfAllNewSamples = 0;
-                    int originalSampleSize = _samples.Count;
-                    foreach (double sample in samples)
-                    {
-                        if (double.IsNaN(sample))
-                        {
-                            throw new ArgumentException("Numeric sample cannot be NaN", nameof(sample));
-                        }
-
-                        if (double.IsInfinity(sample))
-                        {
-                            throw new ArgumentException("Numeric sample must be a finite number", nameof(sample));
-                        }
-
-                        _samples.Add(sample);
-                        sumOfAllNewSamples += sample;
-                        _cachedVariance = null;
-                    }
-
-                    // Update the mean all at once
-                    _currentMean = (sumOfAllNewSamples + (_currentMean * originalSampleSize)) / _samples.Count;
+                    sumOfAllNewSamples += sample;
                 }
-                catch (Exception)
-                {
-                    // Assume there was a NaN in the input data set.
-                    // Recalculate the mean manually so we're not in an invalid state
-                    if (_samples.Count == 0)
-                    {
-                        _currentMean = 0;
-                    }
-                    else
-                    {
-                        double sum = 0;
-                        foreach (double sample in _samples)
-                        {
-                            sum += sample;
-                        }
 
-                        _currentMean = sum / (double)_samples.Count;
-                    }
-
-                    throw;
-                }
+                // Update the mean all at once
+                _currentMean = (sumOfAllNewSamples + (_currentMean * originalSampleSize)) / _samples.Count;
+                _cachedVariance = null;
             }
         }
 
@@ -171,11 +161,11 @@ namespace DiffBackup.Math
         /// Adds an array segment of samples to this sample set.
         /// </summary>
         /// <param name="samples">The <see cref="IEnumerable{Double}"/> of samples to add.</param>
-        public void Add(double[] array, int offset, int count)
+        public void Add(double[]? array, int offset, int count)
         {
             if (array is null)
             {
-                throw new ArgumentNullException("Sample array is null");
+                throw new ArgumentNullException(nameof(array));
             }
 
             if (offset < 0 || offset >= array.Length)
@@ -198,82 +188,57 @@ namespace DiffBackup.Math
                 throw new IndexOutOfRangeException("Offset + count exceeds upper bound of the array");
             }
 
+            // Validate all input values in advance so we're not left in an inconsistent state
+            int index = offset;
+            int endIndex = offset + count;
+            int originalSampleSize = _samples.Count;
+            while (index < endIndex)
+            {
+                double sample = array[index++];
+                if (double.IsNaN(sample))
+                {
+                    throw new ArgumentException("Numeric sample cannot be NaN", nameof(sample));
+                }
+
+                if (double.IsInfinity(sample))
+                {
+                    throw new ArgumentException("Numeric sample must be a finite number", nameof(sample));
+                }
+            }
+
+            // Now commit to the change
             lock (_samples)
             {
-                try
-                {
-                    double sumOfAllNewSamples = 0;
-                    int originalSampleSize = _samples.Count;
-                    int index = offset;
-                    int endIndex = offset + count;
-                    while (index < endIndex)
-                    {
-                        double sample = array[index++];
-                        if (double.IsNaN(sample))
-                        {
-                            throw new ArgumentException("Numeric sample cannot be NaN", nameof(sample));
-                        }
-
-                        if (double.IsInfinity(sample))
-                        {
-                            throw new ArgumentException("Numeric sample must be a finite number", nameof(sample));
-                        }
-                    }
-
 #if NET8_0_OR_GREATER
-                    _samples.AddRange(array.AsSpan(offset, count));
+                _samples.AddRange(array.AsSpan(offset, count));
 #else
-                    _samples.AddRange(array.Skip(offset).Take(count));
+                _samples.AddRange(array.Skip(offset).Take(count));
 #endif
 
-                    index = offset;
-                    endIndex = offset + count;
+                double sumOfAllNewSamples = 0;
+                index = offset;
+                endIndex = offset + count;
 
-                    // Use SIMD if possible to sum all elements of the input array (can be faster than one-by-one enumeration)
-                    // 128 elements is approximate size threshold based on benchmarking
-                    if (Vector.IsHardwareAccelerated && count >= 128)
-                    {
-                        int vectorEndIndex = endIndex - (count % Vector<double>.Count);
-                        while (index < vectorEndIndex)
-                        {
-                            sumOfAllNewSamples += Vector.Dot(Vector<double>.One, new Vector<double>(array, index));
-                            index += Vector<double>.Count;
-                        }
-                    }
-
-                    // Residual loop
-                    while (index < endIndex)
-                    {
-                        sumOfAllNewSamples += array[index++];
-                    }
-
-                    _currentMean = (sumOfAllNewSamples + (_currentMean * originalSampleSize)) / _samples.Count;
-                }
-                catch (Exception)
+                // Use SIMD if possible to sum all elements of the input array (can be faster than one-by-one enumeration)
+                // 128 elements is approximate size threshold based on benchmarking
+                if (Vector.IsHardwareAccelerated && count >= 128)
                 {
-                    // Assume there was a NaN in the input data set.
-                    // Recalculate the mean manually so we're not in an invalid state
-                    if (_samples.Count == 0)
+                    int vectorEndIndex = endIndex - (count % Vector<double>.Count);
+                    while (index < vectorEndIndex)
                     {
-                        _currentMean = 0;
+                        sumOfAllNewSamples += Vector.Dot(Vector<double>.One, new Vector<double>(array, index));
+                        index += Vector<double>.Count;
                     }
-                    else
-                    {
-                        double sum = 0;
-                        foreach (double sample in _samples)
-                        {
-                            sum += sample;
-                        }
-
-                        _currentMean = sum / (double)_samples.Count;
-                    }
-
-                    throw;
                 }
-                finally
+
+                // Residual loop
+                while (index < endIndex)
                 {
-                    _cachedVariance = null;
+                    sumOfAllNewSamples += array[index++];
                 }
+
+                _currentMean = (sumOfAllNewSamples + (_currentMean * originalSampleSize)) / _samples.Count;
+                _cachedVariance = null;
             }
         }
 
