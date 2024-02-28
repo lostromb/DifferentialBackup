@@ -1,20 +1,22 @@
-﻿using BenchmarkDotNet.Attributes;
-using Durandal.Common.Compression.Crc;
-using Durandal.Common.IO.Crc;
-using Durandal.Common.Logger;
-using Durandal.Common.MathExt;
-using Durandal.Common.Utils.NativePlatform;
-using Durandal.Extensions.Compression.Crc;
-using K4os.Hash.xxHash;
-using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿
 namespace Sandbox
 {
+    using BenchmarkDotNet.Attributes;
+    using Durandal.Common.Compression.Crc;
+    using Durandal.Common.IO.Crc;
+    using Durandal.Common.Logger;
+    using Durandal.Common.MathExt;
+    using Durandal.Common.Utils.NativePlatform;
+    using Durandal.Extensions.Compression.Crc;
+    using K4os.Hash.xxHash;
+    using System;
+    using System.Buffers;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+
     [MemoryDiagnoser]
     public class Benchmarks
     {

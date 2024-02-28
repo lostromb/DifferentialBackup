@@ -3,7 +3,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
@@ -13,6 +12,10 @@
     <PackageReference Include="Durandal.AI.Extensions.Compression" Version="22.0.4596" />
     <PackageReference Include="Durandal.AI.NonPortable" Version="22.0.4596" />
     <PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DiffBackup\DiffBackup.csproj" />
   </ItemGroup>
 
 </Project>

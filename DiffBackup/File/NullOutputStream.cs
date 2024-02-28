@@ -1,12 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Sandbox
+﻿
+namespace DiffBackup.File
 {
-    internal class NullOutputStream : Stream
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+
+    public class NullOutputStream : Stream
     {
         private long _internalPosition = 0;
 

@@ -1,12 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Sandbox
+﻿
+namespace DiffBackup.File
 {
-    internal class FiniteReadStreamWrapper : Stream
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+
+    public class FiniteReadStreamWrapper : Stream
     {
         private readonly Stream _innerStream;
         private readonly long _maxLengthBytes;

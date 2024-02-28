@@ -1,9 +1,12 @@
-﻿using CommandLine.Text;
-using System.Numerics;
-using System.Reflection;
-
-namespace Sandbox
+﻿
+namespace DiffBackup.Math
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Numerics;
+    using System.Reflection;
+
     /// <summary>
     /// Represents a dynamically-sized set of numbers for which we may want to calculate
     /// useful statistics such as arithmetic mean, standard deviation, etc.
