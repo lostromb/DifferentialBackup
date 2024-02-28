@@ -6,6 +6,7 @@ namespace DiffBackup.Math
     using System.Linq;
     using System.Numerics;
     using System.Reflection;
+    using static System.Runtime.InteropServices.JavaScript.JSType;
 
     /// <summary>
     /// Represents a dynamically-sized set of numbers for which we may want to calculate
@@ -15,9 +16,6 @@ namespace DiffBackup.Math
     /// </summary>
     public class StatisticalSet
     {
-        private static readonly bool _canUseListVectorizationHack = false;
-        private static readonly FieldInfo? _listInnerArrayFieldAccessor = null;
-
         /// <summary>
         /// The current set of samples. This implementation only allows the set to be added to or cleared.
         /// </summary>
@@ -32,22 +30,6 @@ namespace DiffBackup.Math
         /// The cached value for the variance of the set, lazily updated.
         /// </summary>
         private double? _cachedVariance = null;
-
-        static StatisticalSet()
-        {
-            try
-            {
-                // Probe to see if we can pry into the underlying double[] array beneath the List<double>,
-                // and if so, cache the reflection accessor that makes that possible
-                _listInnerArrayFieldAccessor = typeof(List<double>).GetRuntimeFields()
-                    .Where((s) => string.Equals("_items", s.Name, StringComparison.Ordinal)).FirstOrDefault();
-                _canUseListVectorizationHack = 
-                    Vector.IsHardwareAccelerated &&
-                    _listInnerArrayFieldAccessor != null &&
-                    _listInnerArrayFieldAccessor.FieldType == typeof(double[]);
-            }
-            catch (Exception) { }
-        }
 
         /// <summary>
         /// Creates a new <see cref="StatisticalSet"/> with default initial capacity.
@@ -146,9 +128,34 @@ namespace DiffBackup.Math
                 double sumOfAllNewSamples = 0;
                 int originalSampleSize = _samples.Count;
                 _samples.AddRange(samples);
-                foreach (double sample in samples)
+
+                // Vectorize calculation of the mean if possible
+                ArraySegment<double> samplesAsSegment = default;
+                if (Vector.IsHardwareAccelerated &&
+                    samples.Count >= 128 &&
+                    ListHacks.TryGetUnderlyingArraySegment(samples, out samplesAsSegment))
                 {
-                    sumOfAllNewSamples += sample;
+                    int index = samplesAsSegment.Offset;
+                    int endIndex = samplesAsSegment.Count;
+                    int vectorEndIndex = endIndex - (samplesAsSegment.Count % Vector<double>.Count);
+                    double[] rawArray = samplesAsSegment.Array ?? Array.Empty<double>();
+                    while (index < vectorEndIndex)
+                    {
+                        sumOfAllNewSamples += Vector.Dot(Vector<double>.One, new Vector<double>(rawArray, index));
+                        index += Vector<double>.Count;
+                    }
+
+                    while (index < endIndex)
+                    {
+                        sumOfAllNewSamples += rawArray[index++];
+                    }
+                }
+                else
+                {
+                    foreach (double sample in samples)
+                    {
+                        sumOfAllNewSamples += sample;
+                    }
                 }
 
                 // Update the mean all at once
@@ -295,30 +302,22 @@ namespace DiffBackup.Math
 
                         // Calculate the variance now, using SIMD if possible
                         // 128 elements is approximate size threshold based on benchmarking
-                        if (_samples.Count >= 128 && _canUseListVectorizationHack && _listInnerArrayFieldAccessor != null)
+                        ArraySegment<double> rawArraySegment = default;
+                        if (Vector.IsHardwareAccelerated &&
+                            _samples.Count >= 128 &&
+                            ListHacks.TryGetUnderlyingArraySegment(_samples, out rawArraySegment))
                         {
-                            // Hack to access the underlying array behind the List<double>
-                            object? rawRef = _listInnerArrayFieldAccessor.GetValue(_samples);
-                            if (rawRef == null || !(rawRef is double[]))
-                            {
-                                throw new NullReferenceException("List<double> had null or incorrect inner array; this should never happen");
-                            }
-
-                            double[] rawArray = (double[])rawRef;
-                            int index = 0;
-                            int endIndex = _samples.Count;
-                            int vectorEndIndex = endIndex - (endIndex % Vector<double>.Count);
+                            double[] rawArray = rawArraySegment.Array ?? Array.Empty<double>();
+                            int index = rawArraySegment.Offset;
+                            int endIndex = rawArraySegment.Count;
+                            int vectorEndIndex = endIndex - (rawArraySegment.Count % Vector<double>.Count);
                             Vector<double> meanVec = new Vector<double>(_currentMean);
                             while (index < vectorEndIndex)
                             {
                                 Vector<double> sampleVec = new Vector<double>(rawArray, index);
-                                sampleVec = Vector.Subtract<double>(sampleVec, meanVec);
+                                sampleVec = Vector.Subtract(sampleVec, meanVec);
                                 // Use dot product as a clever trick to square and sum the entire vector as one operation
                                 sumVariance += Vector.Dot(sampleVec, sampleVec);
-
-                                //sampleVec = Vector.Multiply(sampleVec, sampleVec);
-                                //sumVariance += Vector.Dot(Vector<double>.One, sampleVec);
-
                                 index += Vector<double>.Count;
                             }
 
