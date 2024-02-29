@@ -43,7 +43,7 @@ namespace Sandbox
             ILogger logger = new ConsoleLogger();
             
             Dictionary<string, StatisticalSet> compressionRatioStats = new Dictionary<string, StatisticalSet>();
-            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"S:\Documents"), logger, compressionRatioStats);
+            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"E:\Work"), logger, compressionRatioStats);
             Console.WriteLine("Final statistics:");
             foreach (var fileType in compressionRatioStats)
             {

@@ -103,9 +103,11 @@ namespace DiffBackup.Tests
             {
                 set.Add(rand.NextDouble(-10, 1000) * rand.NextDouble(-10, 1000));
                 Assert.AreEqual(c + 1, set.SampleCount);
-                Assert.AreEqual(CalculateMeanNaive(set.Samples), set.Mean, 0.01);
+                Assert.AreEqual(CalculateMeanNaive(set.Samples), set.Mean, 0.00001);
                 Assert.AreEqual(CalculateVarianceNaive(set.Samples), set.Variance, 0.01);
-                Assert.AreEqual(CalculateStdDevNaive(set.Samples), set.StandardDeviation, 0.01);
+                Assert.AreEqual(CalculateStdDevNaive(set.Samples), set.StandardDeviation, 0.00001);
+                Assert.IsTrue(set.Mean <= 1000000);
+                Assert.IsTrue(set.StandardDeviation <= 1000000);
             }
         }
 
@@ -180,9 +182,11 @@ namespace DiffBackup.Tests
                 set.Add(inputList);
                 expectedListLength += inputListLength;
                 Assert.AreEqual(expectedListLength, set.SampleCount);
-                Assert.AreEqual(CalculateMeanNaive(set.Samples), set.Mean, 0.01);
+                Assert.AreEqual(CalculateMeanNaive(set.Samples), set.Mean, 0.00001);
                 Assert.AreEqual(CalculateVarianceNaive(set.Samples), set.Variance, 0.01);
-                Assert.AreEqual(CalculateStdDevNaive(set.Samples), set.StandardDeviation, 0.01);
+                Assert.AreEqual(CalculateStdDevNaive(set.Samples), set.StandardDeviation, 0.00001);
+                Assert.IsTrue(set.Mean <= 1000000);
+                Assert.IsTrue(set.StandardDeviation <= 1000000);
             }
         }
 
@@ -267,7 +271,7 @@ namespace DiffBackup.Tests
         {
             StatisticalSet set = new StatisticalSet();
             IRandom rand = new FastRandom(3112);
-            double[] inputArray = new double[10000];
+            double[] inputArray = new double[1000];
             int expectedListLength = 0;
 
             for (int c = 0; c < 100; c++)
@@ -282,9 +286,11 @@ namespace DiffBackup.Tests
                 set.Add(inputArray, inputArrayStart, inputArrayLength);
                 expectedListLength += inputArrayLength;
                 Assert.AreEqual(expectedListLength, set.SampleCount);
-                Assert.AreEqual(CalculateMeanNaive(set.Samples), set.Mean, 0.01);
+                Assert.AreEqual(CalculateMeanNaive(set.Samples), set.Mean, 0.00001);
                 Assert.AreEqual(CalculateVarianceNaive(set.Samples), set.Variance, 0.01);
-                Assert.AreEqual(CalculateStdDevNaive(set.Samples), set.StandardDeviation, 0.01);
+                Assert.AreEqual(CalculateStdDevNaive(set.Samples), set.StandardDeviation, 0.00001);
+                Assert.IsTrue(set.Mean <= 1000000);
+                Assert.IsTrue(set.StandardDeviation <= 1000000);
             }
         }
 
