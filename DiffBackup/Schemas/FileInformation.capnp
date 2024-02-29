@@ -8,12 +8,16 @@ $CSharp.emitNullableDirective(true);
 
 struct FileInformation @0x9bcc69c15083a79a {
     path @0 :Text;
-    nullableSize :union {
+    nullableModTime :union {
         noValue @1 :Void;
         value @2 :UInt64;
     }
-    nullableHash :union {
+    nullableSize :union {
         noValue @3 :Void;
         value @4 :UInt64;
+    }
+    nullableHash :union {
+        noValue @5 :Void;
+        value @6 :UInt64;
     }
 }

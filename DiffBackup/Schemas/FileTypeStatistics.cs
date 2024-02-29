@@ -13,10 +13,11 @@
         // that a particular file type is compressible below the specified threshold
         private const double COMPRESSION_RATIO_THRESHOLD = 0.85;
         private const double STD_DEVIATIONS_OF_CERTAINTY = 1.0;
+        private const int MIN_SAMPLE_COUNT_REQUIRED = 50;
 
         public static FileTypeCompressibility GetCompressionSuitability(this StatisticalSet stats)
         {
-            if (stats.SampleCount < 50)
+            if (stats.SampleCount < MIN_SAMPLE_COUNT_REQUIRED)
             {
                 return FileTypeCompressibility.Unknown;
             }

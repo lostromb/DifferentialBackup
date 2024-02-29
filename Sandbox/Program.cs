@@ -1,6 +1,7 @@
 ﻿
 namespace Sandbox
 {
+    using Capnp;
     using DiffBackup.File;
     using DiffBackup.Math;
     using DiffBackup.Schemas;
@@ -24,6 +25,7 @@ namespace Sandbox
     using System.Diagnostics;
     using System.IO;
     using System.Reflection;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -41,19 +43,19 @@ namespace Sandbox
             NativePlatformUtils.SetGlobalResolver(new NativeLibraryResolverImpl());
             CRC32CAccelerator.Apply(NullLogger.Singleton);
             ILogger logger = new ConsoleLogger();
-            
-            Dictionary<string, StatisticalSet> compressionRatioStats = new Dictionary<string, StatisticalSet>();
-            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"E:\Work"), logger, compressionRatioStats);
-            Console.WriteLine("Final statistics:");
-            foreach (var fileType in compressionRatioStats)
-            {
-                Console.WriteLine("{0:F4} {1:F4} {2} \"{3}\" {4}",
-                    fileType.Value.Mean,
-                    fileType.Value.StandardDeviation,
-                    fileType.Value.SampleCount,
-                    fileType.Key,
-                    fileType.Value.GetCompressionSuitability());
-            }
+
+            //Dictionary<string, StatisticalSet> compressionRatioStats = new Dictionary<string, StatisticalSet>();
+            //RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"E:\Work"), logger, compressionRatioStats);
+            //Console.WriteLine("Final statistics:");
+            //foreach (var fileType in compressionRatioStats)
+            //{
+            //    Console.WriteLine("{0:F4} {1:F4} {2} \"{3}\" {4}",
+            //        fileType.Value.Mean,
+            //        fileType.Value.StandardDeviation,
+            //        fileType.Value.SampleCount,
+            //        fileType.Key,
+            //        fileType.Value.GetCompressionSuitability());
+            //}
 
             //using (SemaphoreSlim diskIoSemaphore = new SemaphoreSlim(FILE_IO_PARALLELISM))
             //{
@@ -69,6 +71,42 @@ namespace Sandbox
             //        //logger.Log(((double)HashedBytes / 1024 / 1024 / HashTimer.Elapsed.TotalSeconds) + " MB/s");
             //    }
             //}
+
+            List<FileInformation> fileInfoList = new List<FileInformation>();
+            DirectoryInfo root = new DirectoryInfo(@"E:\Data");
+            Stopwatch timer = Stopwatch.StartNew();
+            foreach (FileInfo file in root.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                FileInformation thisFileInfo = new FileInformation();
+                thisFileInfo.Path = file.FullName;
+                thisFileInfo.NullableSize = thisFileInfo.NullableSize ?? new FileInformation.nullableSize();
+                thisFileInfo.NullableSize.which = FileInformation.nullableSize.WHICH.Value;
+                thisFileInfo.NullableSize.Value = (ulong)file.Length;
+                thisFileInfo.NullableModTime = thisFileInfo.NullableModTime ?? new FileInformation.nullableModTime();
+                thisFileInfo.NullableModTime.which = FileInformation.nullableModTime.WHICH.Value;
+                thisFileInfo.NullableModTime.Value = (ulong)file.LastWriteTimeUtc.ToFileTimeUtc();
+                fileInfoList.Add(thisFileInfo);
+            }
+
+            FileManifest manifest = new FileManifest();
+            manifest.Files = fileInfoList;
+            timer.Stop();
+            Console.WriteLine("Indexed " + (fileInfoList.Count / timer.Elapsed.TotalSeconds) + " files per second");
+
+            using (Stream fileOutStream = new FileStream(@"E:\Data\test.cap", FileMode.Create, FileAccess.Write))
+            {
+                MessageBuilder messageBuilder = MessageBuilder.Create();
+                manifest.serialize(messageBuilder.BuildRoot<FileManifest.WRITER>());
+                new FramePump(fileOutStream).Send(messageBuilder.Frame);
+            }
+
+            // And parse the file back
+            using (Stream fileInStream = new FileStream(@"E:\Data\test.cap", FileMode.Open, FileAccess.Read))
+            {
+                FileManifest.READER reader = new FileManifest.READER(
+                    DeserializerState.CreateRoot(Framing.ReadSegments(fileInStream)));
+                reader.GetHashCode();
+            }
         }
 
         private static async ValueTask<int> RecurseDirectoryAndHash(
