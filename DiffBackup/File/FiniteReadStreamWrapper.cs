@@ -8,6 +8,11 @@ namespace DiffBackup.File
     using System.Text;
     using System.Threading.Tasks;
 
+    /// <summary>
+    /// A simple stream wrapper which allows for reading either the stream's natural
+    /// read length, or a fixed maximum length of bytes, whichever comes first.
+    /// Useful for getting a "preview" of a potentially long stream.
+    /// </summary>
     public class FiniteReadStreamWrapper : Stream
     {
         private readonly Stream _innerStream;
