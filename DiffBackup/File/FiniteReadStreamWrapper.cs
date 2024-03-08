@@ -13,7 +13,7 @@ namespace DiffBackup.File
     /// read length, or a fixed maximum length of bytes, whichever comes first.
     /// Useful for getting a "preview" of a potentially long stream.
     /// </summary>
-    public class FiniteReadStreamWrapper : Stream
+    internal class FiniteReadStreamWrapper : Stream
     {
         private readonly Stream _innerStream;
         private readonly long _maxLengthBytes;

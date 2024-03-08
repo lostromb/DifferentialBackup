@@ -119,9 +119,9 @@ namespace DiffBackup.Tests
             try
             {
                 set.Add(null);
-                Assert.Fail("Should have thrown an ArgumentNullException");
+                Assert.Fail("Should have thrown an NullReferenceException");
             }
-            catch (ArgumentNullException) { }
+            catch (NullReferenceException) { }
 
             List<double> samples = new List<double>();
             samples.Add(1);

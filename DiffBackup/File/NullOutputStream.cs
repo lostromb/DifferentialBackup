@@ -8,7 +8,7 @@ namespace DiffBackup.File
     using System.Text;
     using System.Threading.Tasks;
 
-    public class NullOutputStream : Stream
+    internal class NullOutputStream : Stream
     {
         private long _internalPosition = 0;
 

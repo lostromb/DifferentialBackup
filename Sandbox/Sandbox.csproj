@@ -8,9 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
-    <PackageReference Include="Durandal.AI" Version="22.0.4596" />
-    <PackageReference Include="Durandal.AI.Extensions.Compression" Version="22.0.4596" />
-    <PackageReference Include="Durandal.AI.NonPortable" Version="22.0.4596" />
+    <PackageReference Include="Durandal.AI" Version="22.0.4597" />
+    <PackageReference Include="Durandal.AI.Extensions.Compression" Version="22.0.4597" />
+    <PackageReference Include="Durandal.AI.NonPortable" Version="22.0.4597" />
     <PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
   </ItemGroup>
 

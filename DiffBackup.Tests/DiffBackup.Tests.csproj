@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Durandal.AI" Version="22.0.4596" />
-    <PackageReference Include="Durandal.AI.Extensions.Compression" Version="22.0.4596" />
-    <PackageReference Include="Durandal.AI.NonPortable" Version="22.0.4596" />
+    <PackageReference Include="Durandal.AI" Version="22.0.4597" />
+    <PackageReference Include="Durandal.AI.Extensions.Compression" Version="22.0.4597" />
+    <PackageReference Include="Durandal.AI.NonPortable" Version="22.0.4597" />
     <PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.2.2" />

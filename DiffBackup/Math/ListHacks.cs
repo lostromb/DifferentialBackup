@@ -12,7 +12,7 @@ namespace DiffBackup.Math
     /// <summary>
     /// Performance hacks applied to common language runtime collections.
     /// </summary>
-    public static class ListHacks
+    internal static class ListHacks
     {
         private static readonly Lazy<FieldInfo?> List_Double_InnerArrayAccessor = new Lazy<FieldInfo?>(GenerateListAccessor_Double, LazyThreadSafetyMode.None);
 
@@ -54,6 +54,7 @@ namespace DiffBackup.Math
                 return false;
             }
         }
+
         private static FieldInfo? GenerateListAccessor_Double()
         {
             try
