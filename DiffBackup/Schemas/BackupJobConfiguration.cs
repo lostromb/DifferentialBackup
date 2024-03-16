@@ -11,7 +11,7 @@ namespace DiffBackup.Schemas
         public string SourcePath { get; set; }
         public string DestinationPath { get; set; }
         public bool DryRun { get; set; }
-        public bool UseCompression { get; set; }
+        public bool OverrideExistingLock { get; set; }
 
         public BackupJobConfiguration(
             string sourcePath,

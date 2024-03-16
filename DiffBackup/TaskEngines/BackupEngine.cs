@@ -15,6 +15,8 @@ namespace DiffBackup.TaskEngines
 {
     public static class BackupEngine
     {
+        private static readonly VirtualPath LOCK_FILE_PATH = new VirtualPath("/BACKUP_IN_PROGRESS");
+
         public static async Task Run(
             BackupJobConfiguration jobConfig,
             IFileSystem sourceFileSystem,
@@ -24,44 +26,72 @@ namespace DiffBackup.TaskEngines
             CancellationToken cancelToken)
         {
             ////////// Validate config //////////
-            
-            ////////// Lock file system //////////
+
             Guid backupGuid = new Guid();
             logger.Log("Assigning GUID " + backupGuid.ToString() + " to this job", LogLevel.Vrb);
-            VirtualPath lockFile = new VirtualPath("/BACKUP_IN_PROGRESS");
-            bool lockOK = TryObtainLockFile(backupGuid, lockFile, targetFileSystem, logger);
 
-            if (!lockOK)
+            ////////// Lock file system //////////
+            // Also create a named system mutex to try and detect if multiple backups are happening at once on this machine.
+            // We don't actually lock the mutex, we just use the creation signal to tell if another process already made one.
+            // So it could be something else like a pipe if we wanted.
+            bool mutexCreated;
+            using (Mutex globalMutex = new Mutex(false, "DiffBackupIpcMtx", out mutexCreated))
             {
-                // handle if override mode is set in job config
-                // TODO Get the GUID of the in-progress job?
-                throw new Exception("Could not get file system lock. Throwing exception for now.");
-            }
+                if (!mutexCreated)
+                {
+                    logger.Log("Another process appears to be running a backup at the same time on this machine. Execution WILL NOT continue, even with override. Please check your running processes.", LogLevel.Err);
+                    return;
+                }
 
-            try
-            {
-                ////////// Check for existing backup data //////////
+                bool lockOK = TryObtainLockFile(backupGuid, LOCK_FILE_PATH, targetFileSystem, logger);
 
-                ////////// Create index of backup target //////////
+                if (!lockOK)
+                {
+                    if (jobConfig.OverrideExistingLock)
+                    {
+                        logger.Log("Overriding lock from previous backup and continuing. This is intended only to resume a previously failed backup.", LogLevel.Err);
+                    }
+                    else
+                    {
+                        // handle if override mode is set in job config
+                        // TODO Get the GUID of the in-progress job?
+                        throw new Exception("Could not get file system lock. Throwing exception for now.");
+                    }
+                }
 
-                ////////// Create index of backup source //////////
+                try
+                {
+                    ////////// Check for existing backup data //////////
 
-                ////////// Calculate deltas between source and target //////////
+                    ////////// Create index of backup target //////////
+
+                    ////////// Create index of backup source //////////
+
+                    ////////// Calculate deltas between source and target //////////
 
 
 
 
 
-            }
-            finally
-            {
-                ////////// Unlock file system, backup finished! //////////
-                logger.Log("Deleting lock file", LogLevel.Vrb);
-                await targetFileSystem.DeleteAsync(lockFile).ConfigureAwait(false);
-                logger.Log(LogLevel.Std,
-                    DataPrivacyClassification.SystemMetadata,
-                    "Backup completed at {0:G}!",
-                    realTime.Time.ToLocalTime());
+                }
+                finally
+                {
+                    ////////// Unlock file system, backup finished! //////////
+                    logger.Log("Deleting lock file", LogLevel.Vrb);
+                    try
+                    {
+                        await targetFileSystem.DeleteAsync(LOCK_FILE_PATH).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.Log(e, LogLevel.Wrn);
+                    }
+
+                    logger.Log(LogLevel.Std,
+                        DataPrivacyClassification.SystemMetadata,
+                        "Backup completed at {0:G}!",
+                        realTime.Time.ToLocalTime());
+                }
             }
         }
 
