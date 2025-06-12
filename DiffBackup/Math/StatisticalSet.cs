@@ -14,7 +14,7 @@
 //    /// Operations on this class are thread safe.
 //    /// </summary>
 //    public class StatisticalSet
-//    {a
+//    {
 //        /// <summary>
 //        /// The current set of samples. This implementation only allows the set to be added to or cleared.
 //        /// </summary>
