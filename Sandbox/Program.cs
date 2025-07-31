@@ -4,31 +4,21 @@ namespace Sandbox
     using DiffBackup;
     using DiffBackup.File;
     using DiffBackup.Schemas;
-    using DiffBackup.Schemas.Serialization;
     using DiffBackup.TaskEngines;
-    using Durandal.API;
     using Durandal.Common.File;
-    using Durandal.Common.Instrumentation;
     using Durandal.Common.IO;
-    using Durandal.Common.IO.Crc;
     using Durandal.Common.Logger;
     using Durandal.Common.MathExt;
     using Durandal.Common.Tasks;
-    using Durandal.Common.Time;
     using Durandal.Common.Utils;
     using Durandal.Common.Utils.NativePlatform;
     using Durandal.Extensions.Compression.Brotli;
     using Durandal.Extensions.Compression.Crc;
     using Durandal.Extensions.Compression.ZStandard;
-    using K4os.Hash.xxHash;
     using System;
-    using System.Buffers;
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
-    using System.Reflection;
-    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -50,18 +40,62 @@ namespace Sandbox
             NativePlatformUtils.SetGlobalResolver(new NativeLibraryResolverImpl());
             AssemblyReflector.ApplyAccelerators(typeof(CRC32CAccelerator).Assembly, logger.Clone("Accelerators"));
 
-            //Dictionary<string, StatisticalSet> compressionRatioStats = new Dictionary<string, StatisticalSet>();
-            //RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"E:\Work"), logger, compressionRatioStats);
-            //Console.WriteLine("Final statistics:");
-            //foreach (var fileType in compressionRatioStats)
-            //{
-            //    Console.WriteLine("{0:F4} {1:F4} {2} \"{3}\" {4}",
-            //        fileType.Value.Mean,
-            //        fileType.Value.StandardDeviation,
-            //        fileType.Value.SampleCount,
-            //        fileType.Key,
-            //        fileType.Value.GetCompressionSuitability());
-            //}
+            CompressionRatioStatistics compressionRatioStats = new CompressionRatioStatistics(logger.Clone("FileCompressionStats"));
+
+            // Common text formats
+            compressionRatioStats.AddFixedEntry(".txt", FileTypeCompressibility.Suitable);
+            compressionRatioStats.AddFixedEntry(".ini", FileTypeCompressibility.Suitable);
+            compressionRatioStats.AddFixedEntry(".xml", FileTypeCompressibility.Suitable);
+            compressionRatioStats.AddFixedEntry(".json", FileTypeCompressibility.Suitable);
+            compressionRatioStats.AddFixedEntry(".css", FileTypeCompressibility.Suitable);
+            compressionRatioStats.AddFixedEntry(".html", FileTypeCompressibility.Suitable);
+            compressionRatioStats.AddFixedEntry(".js", FileTypeCompressibility.Suitable);
+
+            // Common image formats
+            compressionRatioStats.AddFixedEntry(".jpg", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".jpeg", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".jpe", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".gif", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".png", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".webp", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".heic", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".dng", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".jfif", FileTypeCompressibility.Unsuitable);
+
+            // Common archive formats
+            compressionRatioStats.AddFixedEntry(".zip", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".rar", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".7z", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".gz", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".bz", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".mobi", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".epub", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".azw3", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".cbz", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".cbr", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".cb7", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".jar", FileTypeCompressibility.Unsuitable);
+
+            // Common media formats
+            compressionRatioStats.AddFixedEntry(".mpg", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".mpeg", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".mp3", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".mp4", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".m4a", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".mkv", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".ogg", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".opus", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".webm", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".flac", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".aac", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".avi", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".mov", FileTypeCompressibility.Unsuitable);
+            compressionRatioStats.AddFixedEntry(".wav", FileTypeCompressibility.Unsuitable);
+
+            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"S:\Documents"), logger, compressionRatioStats);
+            compressionRatioStats.PrintInternalStats();
+
+            return;
 
             //using (SemaphoreSlim diskIoSemaphore = new SemaphoreSlim(FILE_IO_PARALLELISM))
             //{
@@ -199,7 +233,7 @@ namespace Sandbox
         private static void RecurseDirectoryAndProbeCompression(
             DirectoryInfo root,
             ILogger logger,
-            Dictionary<string, StatisticalSet> compressionStats)
+            CompressionRatioStatistics compressionStats)
         {
             if (root == null)
             {
@@ -210,28 +244,18 @@ namespace Sandbox
             {
                 try
                 {
-                    string fileExt = file.Extension.ToLowerInvariant();
-                    if (file.Name.StartsWith('.'))
+                    string fileExt = file.Extension;
+                    if (string.Equals(file.Name, file.Extension, StringComparison.Ordinal))
                     {
+                        // This is mainly to catch hidden dot files on linux will appear to be nothing but an extension
+                        // In this case, assume the file has no extension. It still might be compressible
                         fileExt = string.Empty;
                     }
 
-                    StatisticalSet? statsForThisFileType;
-                    if (!compressionStats.TryGetValue(fileExt, out statsForThisFileType))
-                    {
-                        statsForThisFileType = new StatisticalSet();
-                        compressionStats.Add(fileExt, statsForThisFileType);
-                    }
-
                     // Do we need to update the ratio?
-                    FileTypeCompressibility suitability = statsForThisFileType.GetCompressionSuitability();
-                    if (suitability == FileTypeCompressibility.Unknown)
+                    if (compressionStats.GetCompressibility(fileExt) == FileTypeCompressibility.Unknown)
                     {
-                        double ratio = GetZstCompressionRatio(file);
-                        statsForThisFileType.Add(ratio);
-                        logger.LogFormat(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
-                            "{0:F4} {1:F4} \"{2}\"",
-                            statsForThisFileType.Mean, statsForThisFileType.StandardDeviation, fileExt);
+                        compressionStats.AddDynamicEntry(fileExt, GetZstCompressionRatio(file));
                     }
                 }
                 catch (Exception e)
