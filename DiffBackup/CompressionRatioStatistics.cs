@@ -1,15 +1,13 @@
-﻿using DiffBackup.Schemas;
-using Durandal.Common.Logger;
-using Durandal.Common.MathExt;
-using Durandal.Common.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿
 namespace DiffBackup
 {
+    using DiffBackup.Schemas;
+    using Durandal.Common.Logger;
+    using Durandal.Common.MathExt;
+    using Durandal.Common.Utils;
+    using System;
+    using System.Collections.Generic;
+
     internal class CompressionRatioStatistics
     {
         // used to calculate something like a p-value of how certain we are
@@ -67,6 +65,68 @@ namespace DiffBackup
         {
             // TODO validate extension
             _fixedFileTypeStats[extension] = compressibility;
+        }
+
+        public void AddCommonFileFormats()
+        {
+            // Common text formats
+            AddFixedEntry(".txt", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".ini", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".xml", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".json", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".css", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".html", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".htm", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".js", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".yml", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".log", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".tsv", FileTypeCompressibility.Suitable);
+            AddFixedEntry(".csv", FileTypeCompressibility.Suitable);
+
+            // Common image formats
+            AddFixedEntry(".jpg", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".jpeg", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".jpe", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".gif", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".png", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".webp", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".heic", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".dng", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".jfif", FileTypeCompressibility.Unsuitable);
+
+            // Common archive formats
+            AddFixedEntry(".zip", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".rar", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".7z", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".gz", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".bzip", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".bz2", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".mobi", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".epub", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".azw3", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".cbz", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".cbr", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".jar", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".zst", FileTypeCompressibility.Unsuitable);
+
+            // Common media formats
+            AddFixedEntry(".mpg", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".mpeg", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".mp3", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".mp4", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".m4a", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".mkv", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".ogg", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".opus", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".webm", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".flac", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".aac", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".avi", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".mov", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".wav", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".wmv", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".wma", FileTypeCompressibility.Unsuitable);
+            AddFixedEntry(".avif", FileTypeCompressibility.Unsuitable);
         }
 
         internal void PrintInternalStats()

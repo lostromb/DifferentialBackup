@@ -2,11 +2,7 @@
 namespace DiffBackup.File
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
-    using System.Text;
-    using System.Threading.Tasks;
 
     /// <summary>
     /// A simple stream wrapper which allows for reading either the stream's natural

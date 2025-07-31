@@ -17,15 +17,12 @@ using System.Threading.Tasks;
 
 namespace DiffBackup.TaskEngines
 {
+    /// <summary>
+    /// Primary engine responsible for the "backup" task within the program.
+    /// </summary>
     public static class BackupEngine
     {
         private static readonly VirtualPath LOCK_FILE_PATH = new VirtualPath("/BACKUP_IN_PROGRESS");
-
-        // Files smaller than this will use async reads and potentially different buffer sizes to tune performance
-        private const int ASYNC_FILE_SIZE_THRESHOLD = 1024 * 1024; // 1 MB
-
-        // The max number of threads to spawn when reading data from disk
-        private const int FILE_IO_PARALLELISM = 8;
 
         public static async Task Run(
             BackupJobConfiguration jobConfig,
@@ -38,7 +35,7 @@ namespace DiffBackup.TaskEngines
             ////////// Validate config //////////
 
             Guid backupGuid = new Guid();
-            logger.Log("Assigning GUID " + backupGuid.ToString() + " to this job", LogLevel.Vrb);
+            logger.LogFormat(LogLevel.Vrb, DataPrivacyClassification.SystemMetadata, "Assigning GUID {0} to this job", backupGuid);
 
             ////////// Lock file system //////////
             // Also create a named system mutex to try and detect if multiple backups are happening at once on this machine.
@@ -145,7 +142,13 @@ namespace DiffBackup.TaskEngines
         /// <param name="cancelToken"></param>
         /// <param name="threadPool"></param>
         /// <returns></returns>
-        internal static async Task<TreeDirectory> BuildFullMetadataTree(IFileSystem fileSystem, VirtualPath rootDirectory, ILogger logger, CancellationToken cancelToken, IThreadPool threadPool)
+        internal static async Task<TreeDirectory> BuildFullMetadataTree(
+            IFileSystem fileSystem,
+            VirtualPath rootDirectory,
+            ILogger logger,
+            CancellationToken cancelToken,
+            IThreadPool threadPool,
+            BackupConfiguration backupConfig)
         {
             OSAndArchitecture arch = NativePlatformUtils.GetCurrentPlatform(logger);
             StringComparer fsComparer = arch.OS == PlatformOperatingSystem.Windows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -158,7 +161,7 @@ namespace DiffBackup.TaskEngines
                 NullLogger.Singleton,
                 NullMetricCollector.Singleton,
                 DimensionSet.Empty,
-                maxCapacity: FILE_IO_PARALLELISM,
+                maxCapacity: backupConfig.FileIOThreads,
                 overschedulingBehavior: ThreadPoolOverschedulingBehavior.BlockUntilThreadsAvailable))
             {
                 await BuildFullMetadataTree_Internal(
@@ -167,6 +170,7 @@ namespace DiffBackup.TaskEngines
                     rootDirectory,
                     logger,
                     fixedThreadPool,
+                    backupConfig,
                     fsComparer,
                     cancelToken,
                     queuedThreads,
@@ -177,7 +181,7 @@ namespace DiffBackup.TaskEngines
             // Wait for all async tasks to resolve
             SpinWait.SpinUntil(() => queuedThreads.Count == finishedThreads.Count);
 
-            // TODO do something with the errored files?
+            // FIXME do something with the errored files?
 
             return returnVal;
         }
@@ -188,6 +192,7 @@ namespace DiffBackup.TaskEngines
             VirtualPath currentDirectory,
             ILogger logger,
             IThreadPool threadPool,
+            BackupConfiguration backupConfig,
             StringComparer fsNameComparer,
             CancellationToken cancelToken,
             AtomicCounter queuedThreads,
@@ -195,6 +200,7 @@ namespace DiffBackup.TaskEngines
             ConcurrentQueue<VirtualPath> erroredFiles)
         {
             logger.LogFormat(LogLevel.Vrb, DataPrivacyClassification.EndUserIdentifiableInformation, "Starting indexing directory {0}", currentDirectory.FullName);
+            int asyncFileReadSizeThresholdBytes = backupConfig.AsyncFileReadSizeThresholdBytes; // avoid reading from the config too frequently
 
             // Enumerate files in this entire directory on the thread pool.
             // Each thread will iteratively mutate the Files list of the current node, so we have to be careful
@@ -217,7 +223,7 @@ namespace DiffBackup.TaskEngines
                             fileNode.FileSize = (ulong)stat.Size;
                             fileNode.ModTime = (ulong)stat.LastWriteTime.ToUnixTimeMilliseconds();
 
-                            if (stat.Size < ASYNC_FILE_SIZE_THRESHOLD)
+                            if (stat.Size < asyncFileReadSizeThresholdBytes)
                             {
                                 // Do small files in overlapped I/O
                                 // Rely on NTFS file systems having 64K blocks by default to hopefully get the best perf here, even for small files
@@ -262,7 +268,18 @@ namespace DiffBackup.TaskEngines
             {
                 // Then iterate through all subdirectories
                 TreeDirectory subdirNode = new TreeDirectory(subdir.Name, fsNameComparer);
-                await BuildFullMetadataTree_Internal(subdirNode, fileSystem, subdir, logger, threadPool, fsNameComparer, cancelToken, queuedThreads, finishedThreads, erroredFiles).ConfigureAwait(false);
+                await BuildFullMetadataTree_Internal(
+                    subdirNode,
+                    fileSystem,
+                    subdir,
+                    logger,
+                    threadPool,
+                    backupConfig,
+                    fsNameComparer,
+                    cancelToken,
+                    queuedThreads,
+                    finishedThreads,
+                    erroredFiles).ConfigureAwait(false);
                 currentNode.Subdirectories.Add(subdirNode.DirectoryName, subdirNode);
             }
         }

@@ -5,6 +5,7 @@ namespace Sandbox
     using DiffBackup.File;
     using DiffBackup.Schemas;
     using DiffBackup.TaskEngines;
+    using Durandal.Common.Config;
     using Durandal.Common.File;
     using Durandal.Common.IO;
     using Durandal.Common.Logger;
@@ -40,62 +41,10 @@ namespace Sandbox
             NativePlatformUtils.SetGlobalResolver(new NativeLibraryResolverImpl());
             AssemblyReflector.ApplyAccelerators(typeof(CRC32CAccelerator).Assembly, logger.Clone("Accelerators"));
 
-            CompressionRatioStatistics compressionRatioStats = new CompressionRatioStatistics(logger.Clone("FileCompressionStats"));
-
-            // Common text formats
-            compressionRatioStats.AddFixedEntry(".txt", FileTypeCompressibility.Suitable);
-            compressionRatioStats.AddFixedEntry(".ini", FileTypeCompressibility.Suitable);
-            compressionRatioStats.AddFixedEntry(".xml", FileTypeCompressibility.Suitable);
-            compressionRatioStats.AddFixedEntry(".json", FileTypeCompressibility.Suitable);
-            compressionRatioStats.AddFixedEntry(".css", FileTypeCompressibility.Suitable);
-            compressionRatioStats.AddFixedEntry(".html", FileTypeCompressibility.Suitable);
-            compressionRatioStats.AddFixedEntry(".js", FileTypeCompressibility.Suitable);
-
-            // Common image formats
-            compressionRatioStats.AddFixedEntry(".jpg", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".jpeg", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".jpe", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".gif", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".png", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".webp", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".heic", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".dng", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".jfif", FileTypeCompressibility.Unsuitable);
-
-            // Common archive formats
-            compressionRatioStats.AddFixedEntry(".zip", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".rar", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".7z", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".gz", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".bz", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".mobi", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".epub", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".azw3", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".cbz", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".cbr", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".cb7", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".jar", FileTypeCompressibility.Unsuitable);
-
-            // Common media formats
-            compressionRatioStats.AddFixedEntry(".mpg", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".mpeg", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".mp3", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".mp4", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".m4a", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".mkv", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".ogg", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".opus", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".webm", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".flac", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".aac", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".avi", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".mov", FileTypeCompressibility.Unsuitable);
-            compressionRatioStats.AddFixedEntry(".wav", FileTypeCompressibility.Unsuitable);
-
-            RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"S:\Documents"), logger, compressionRatioStats);
-            compressionRatioStats.PrintInternalStats();
-
-            return;
+            //CompressionRatioStatistics compressionRatioStats = new CompressionRatioStatistics(logger.Clone("FileCompressionStats"));
+            //compressionRatioStats.AddCommonFileFormats();
+            //RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"S:\Unsorted\Leela and Salinger"), logger, compressionRatioStats);
+            //compressionRatioStats.PrintInternalStats();
 
             //using (SemaphoreSlim diskIoSemaphore = new SemaphoreSlim(FILE_IO_PARALLELISM))
             //{
@@ -112,10 +61,18 @@ namespace Sandbox
             //    }
             //}
 
+            InMemoryConfiguration rawConfig = new InMemoryConfiguration(NullLogger.Singleton);
+            BackupConfiguration config = new BackupConfiguration(rawConfig);
             IThreadPool totalThreadPool = new TaskThreadPool();
             RealFileSystem fileSystem = new RealFileSystem(logger.Clone("FileSystem"), @"D:\", isReadOnly: true);
             Stopwatch timer = Stopwatch.StartNew();
-            TreeDirectory rootDir = await BackupEngine.BuildFullMetadataTree(fileSystem, new VirtualPath("Backup Test"), logger.Clone("Scanner"), CancellationToken.None, totalThreadPool).ConfigureAwait(false);
+            TreeDirectory rootDir = await BackupEngine.BuildFullMetadataTree(
+                fileSystem,
+                new VirtualPath("Backup Test"),
+                logger.Clone("Scanner"),
+                CancellationToken.None,
+                totalThreadPool,
+                config).ConfigureAwait(false);
 
             timer.Stop();
             logger.Log("Indexed " + ((double)rootDir.ChildFileCount / timer.Elapsed.TotalSeconds) + " files per second");

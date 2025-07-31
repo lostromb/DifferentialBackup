@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace DiffBackup.Schemas
 {
+    /// <summary>
+    /// Represents metadata about a directory's contents as stored in a directory tree structure
+    /// </summary>
     internal class TreeDirectory
     {
         public TreeDirectory(string directoryName, StringComparer filesystemCaseComparison)
