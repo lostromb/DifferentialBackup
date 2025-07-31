@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 #nullable enable
-namespace DiffBackup.Schemas
+namespace DiffBackup.Schemas.Serialization
 {
     [System.CodeDom.Compiler.GeneratedCode("capnpc-csharp", "1.3.0.0"), TypeId(0xf7b9ff739b240a99UL)]
     public class FileManifest : ICapnpSerializable
@@ -17,7 +17,7 @@ namespace DiffBackup.Schemas
         void ICapnpSerializable.Deserialize(DeserializerState arg_)
         {
             var reader = READER.create(arg_);
-            Files = reader.Files?.ToReadOnlyList(_ => CapnpSerializable.Create<DiffBackup.Schemas.FileInformation>(_)!);
+            Files = reader.Files?.ToReadOnlyList(_ => CapnpSerializable.Create<DiffBackup.Schemas.Serialization.FileInformation>(_)!);
             applyDefaults();
         }
 
@@ -35,7 +35,7 @@ namespace DiffBackup.Schemas
         {
         }
 
-        public IReadOnlyList<DiffBackup.Schemas.FileInformation>? Files
+        public IReadOnlyList<DiffBackup.Schemas.Serialization.FileInformation>? Files
         {
             get;
             set;
@@ -52,7 +52,7 @@ namespace DiffBackup.Schemas
             public static READER create(DeserializerState ctx) => new READER(ctx);
             public static implicit operator DeserializerState(READER reader) => reader.ctx;
             public static implicit operator READER(DeserializerState ctx) => new READER(ctx);
-            public IReadOnlyList<DiffBackup.Schemas.FileInformation.READER> Files => ctx.ReadList(0).Cast(DiffBackup.Schemas.FileInformation.READER.create);
+            public IReadOnlyList<DiffBackup.Schemas.Serialization.FileInformation.READER> Files => ctx.ReadList(0).Cast(DiffBackup.Schemas.Serialization.FileInformation.READER.create);
         }
 
         public class WRITER : SerializerState
@@ -62,9 +62,9 @@ namespace DiffBackup.Schemas
                 this.SetStruct(0, 1);
             }
 
-            public ListOfStructsSerializer<DiffBackup.Schemas.FileInformation.WRITER> Files
+            public ListOfStructsSerializer<DiffBackup.Schemas.Serialization.FileInformation.WRITER> Files
             {
-                get => BuildPointer<ListOfStructsSerializer<DiffBackup.Schemas.FileInformation.WRITER>>(0);
+                get => BuildPointer<ListOfStructsSerializer<DiffBackup.Schemas.Serialization.FileInformation.WRITER>>(0);
                 set => Link(0, value);
             }
         }

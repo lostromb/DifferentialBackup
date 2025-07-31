@@ -1,7 +1,7 @@
 ﻿
 namespace DiffBackup
 {
-    using DiffBackup.Schemas;
+    using DiffBackup.Schemas.Serialization;
     using System;
 
     public static class Program
@@ -9,7 +9,7 @@ namespace DiffBackup
         public static void Main(string[] args)
         {
             FileInformation info = new FileInformation();
-            info.Path = @"F:\Data\File.txt";
+            info.Path = @"D:\Backup Test\Complete\cpumemory.pdf";
             Console.WriteLine("Hello, World!");
         }
     }

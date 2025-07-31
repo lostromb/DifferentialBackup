@@ -1,7 +1,7 @@
 ﻿@0xa2d5072d4e71917b;
 
 using CSharp = import "csharp.capnp";
-$CSharp.namespace("DiffBackup.Schemas"); 
+$CSharp.namespace("DiffBackup.Schemas.Serialization"); 
 $CSharp.typeVisibility(public); 
 $CSharp.nullableEnable(true); 
 $CSharp.emitNullableDirective(true); 

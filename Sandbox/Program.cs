@@ -1,11 +1,13 @@
 ﻿
 namespace Sandbox
 {
-    using Capnp;
+    using DiffBackup;
     using DiffBackup.File;
-    using DiffBackup.Math;
     using DiffBackup.Schemas;
+    using DiffBackup.Schemas.Serialization;
+    using DiffBackup.TaskEngines;
     using Durandal.API;
+    using Durandal.Common.File;
     using Durandal.Common.Instrumentation;
     using Durandal.Common.IO;
     using Durandal.Common.IO.Crc;
@@ -21,6 +23,7 @@ namespace Sandbox
     using K4os.Hash.xxHash;
     using System;
     using System.Buffers;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
@@ -33,16 +36,19 @@ namespace Sandbox
     {
         public static readonly Stopwatch HashTimer = new Stopwatch();
         public static long HashedBytes;
-        private const int FILE_READ_BUFFER_SIZE = 65536;
-        private const int FILE_IO_PARALLELISM = 4;
 
         public static void Main(string[] args)
         {
+            AsyncMain(args).Await();
+        }
+
+        public static async Task AsyncMain(string[] args)
+        {
             //BenchmarkDotNet.Running.BenchmarkRunner.Run(typeof(Benchmarks));
 
-            NativePlatformUtils.SetGlobalResolver(new NativeLibraryResolverImpl());
-            CRC32CAccelerator.Apply(NullLogger.Singleton);
             ILogger logger = new ConsoleLogger();
+            NativePlatformUtils.SetGlobalResolver(new NativeLibraryResolverImpl());
+            AssemblyReflector.ApplyAccelerators(typeof(CRC32CAccelerator).Assembly, logger.Clone("Accelerators"));
 
             //Dictionary<string, StatisticalSet> compressionRatioStats = new Dictionary<string, StatisticalSet>();
             //RecurseDirectoryAndProbeCompression(new DirectoryInfo(@"E:\Work"), logger, compressionRatioStats);
@@ -64,7 +70,7 @@ namespace Sandbox
             //    for (int pass = 0; pass < 10; pass++)
             //    {
             //        HashTimer.Start();
-            //        filesCounted += RecurseDirectoryAndHash(new DirectoryInfo(@"F:\Data"), logger, diskIoSemaphore).Await();
+            //        filesCounted += RecurseDirectoryAndHash(new DirectoryInfo(@"D:\Backup Test"), logger, diskIoSemaphore).Await();
             //        HashTimer.Stop();
             //        logger.Log("Counted " + filesCounted + " files in " + HashTimer.Elapsed.TotalSeconds + " seconds");
             //        logger.Log(((double)filesCounted / HashTimer.Elapsed.TotalSeconds) + " files per second");
@@ -72,41 +78,38 @@ namespace Sandbox
             //    }
             //}
 
-            List<FileInformation> fileInfoList = new List<FileInformation>();
-            DirectoryInfo root = new DirectoryInfo(@"E:\Data");
+            IThreadPool totalThreadPool = new TaskThreadPool();
+            RealFileSystem fileSystem = new RealFileSystem(logger.Clone("FileSystem"), @"D:\", isReadOnly: true);
             Stopwatch timer = Stopwatch.StartNew();
-            foreach (FileInfo file in root.EnumerateFiles("*", SearchOption.AllDirectories))
-            {
-                FileInformation thisFileInfo = new FileInformation();
-                thisFileInfo.Path = file.FullName;
-                thisFileInfo.NullableSize = thisFileInfo.NullableSize ?? new FileInformation.nullableSize();
-                thisFileInfo.NullableSize.which = FileInformation.nullableSize.WHICH.Value;
-                thisFileInfo.NullableSize.Value = (ulong)file.Length;
-                thisFileInfo.NullableModTime = thisFileInfo.NullableModTime ?? new FileInformation.nullableModTime();
-                thisFileInfo.NullableModTime.which = FileInformation.nullableModTime.WHICH.Value;
-                thisFileInfo.NullableModTime.Value = (ulong)file.LastWriteTimeUtc.ToFileTimeUtc();
-                fileInfoList.Add(thisFileInfo);
-            }
+            TreeDirectory rootDir = await BackupEngine.BuildFullMetadataTree(fileSystem, new VirtualPath("Backup Test"), logger.Clone("Scanner"), CancellationToken.None, totalThreadPool).ConfigureAwait(false);
 
-            FileManifest manifest = new FileManifest();
-            manifest.Files = fileInfoList;
             timer.Stop();
-            Console.WriteLine("Indexed " + (fileInfoList.Count / timer.Elapsed.TotalSeconds) + " files per second");
+            logger.Log("Indexed " + ((double)rootDir.ChildFileCount / timer.Elapsed.TotalSeconds) + " files per second");
+            logger.Log("Indexed " + ((double)rootDir.ChildFileSize / (1024.0 * 1024.0) / timer.Elapsed.TotalSeconds) + " MB per second");
 
-            using (Stream fileOutStream = new FileStream(@"E:\Data\test.cap", FileMode.Create, FileAccess.Write))
-            {
-                MessageBuilder messageBuilder = MessageBuilder.Create();
-                manifest.serialize(messageBuilder.BuildRoot<FileManifest.WRITER>());
-                new FramePump(fileOutStream).Send(messageBuilder.Frame);
-            }
+            //FileInformation thisFileInfo = new FileInformation();
+            //thisFileInfo.Path = file.FullName;
+            //thisFileInfo.NullableSize = thisFileInfo.NullableSize ?? new FileInformation.nullableSize();
+            //thisFileInfo.NullableSize.which = FileInformation.nullableSize.WHICH.Value;
+            //thisFileInfo.NullableSize.Value = (ulong)file.Length;
+            //thisFileInfo.NullableModTime = thisFileInfo.NullableModTime ?? new FileInformation.nullableModTime();
+            //thisFileInfo.NullableModTime.which = FileInformation.nullableModTime.WHICH.Value;
+            //thisFileInfo.NullableModTime.Value = (ulong)file.LastWriteTimeUtc.ToFileTimeUtc();
 
-            // And parse the file back
-            using (Stream fileInStream = new FileStream(@"E:\Data\test.cap", FileMode.Open, FileAccess.Read))
-            {
-                FileManifest.READER reader = new FileManifest.READER(
-                    DeserializerState.CreateRoot(Framing.ReadSegments(fileInStream)));
-                reader.GetHashCode();
-            }
+            //using (Stream fileOutStream = new FileStream(@"D:\Backup Test\test.cap", FileMode.Create, FileAccess.Write))
+            //{
+            //    MessageBuilder messageBuilder = MessageBuilder.Create();
+            //    manifest.serialize(messageBuilder.BuildRoot<FileManifest.WRITER>());
+            //    new FramePump(fileOutStream).Send(messageBuilder.Frame);
+            //}
+
+            //// And parse the file back
+            //using (Stream fileInStream = new FileStream(@"D:\Backup Test\test.cap", FileMode.Open, FileAccess.Read))
+            //{
+            //    FileManifest.READER reader = new FileManifest.READER(
+            //        DeserializerState.CreateRoot(Framing.ReadSegments(fileInStream)));
+            //    reader.GetHashCode();
+            //}
         }
 
         private static async ValueTask<int> RecurseDirectoryAndHash(
@@ -134,7 +137,7 @@ namespace Sandbox
                         await diskIoSemaphore.WaitAsync();
                         try
                         {
-                            ulong hash = await HashFile_XXH64_Async(file).ConfigureAwait(false);
+                            ulong hash = await Hasher.HashFile_XXH64_Async(file).ConfigureAwait(false);
                             Interlocked.Add(ref HashedBytes, file.Length);
                             //logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata, "{0:X16} {1}", hash, file.FullName);
                             logger.Log(((double)HashedBytes / 1024 / 1024 / HashTimer.Elapsed.TotalSeconds) + " MB/s");
@@ -169,7 +172,7 @@ namespace Sandbox
                 {
                     try
                     {
-                        ulong hash = HashFile_XXH64(file);
+                        ulong hash = Hasher.HashFile_XXH64(file);
                         Interlocked.Add(ref HashedBytes, file.Length);
                         //logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata, "{0:X16} {1}", hash, file.FullName);
                         logger.Log(((double)HashedBytes / 1024 / 1024 / HashTimer.Elapsed.TotalSeconds) + " MB/s");
@@ -191,88 +194,7 @@ namespace Sandbox
             return filesCounted;
         }
 
-        public static async ValueTask<uint> HashFile_Crc32c_Async(FileInfo file)
-        {
-            using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: FILE_READ_BUFFER_SIZE, useAsync: true))
-            {
-                ICRC32C crc = CRC32CFactory.Create();
-                byte[] scratch = ArrayPool<byte>.Shared.Rent(FILE_READ_BUFFER_SIZE);
-                try
-                {
-                    while (stream.Position < stream.Length)
-                    {
-                        int readSize = await stream.ReadAsync(scratch, 0, FILE_READ_BUFFER_SIZE).ConfigureAwait(false);
-                        if (readSize <= 0)
-                        {
-                            break;
-                        }
-
-                        crc.Slurp(scratch.AsSpan(0, readSize));
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(scratch);
-                }
-
-                return crc.Checksum;
-            }
-        }
-        public static ulong HashFile_XXH64(FileInfo file)
-        {
-            using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: FILE_READ_BUFFER_SIZE))
-            {
-                XXH64.State state = new XXH64.State();
-                byte[] scratch = ArrayPool<byte>.Shared.Rent(FILE_READ_BUFFER_SIZE);
-                try
-                {
-                    while (stream.Position < stream.Length)
-                    {
-                        int readSize = stream.Read(scratch, 0, FILE_READ_BUFFER_SIZE);
-                        if (readSize <= 0)
-                        {
-                            break;
-                        }
-
-                        XXH64.Update(ref state, scratch.AsSpan(0, readSize));
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(scratch);
-                }
-
-                return XXH64.Digest(state);
-            }
-        }
-
-        public static async ValueTask<ulong> HashFile_XXH64_Async(FileInfo file)
-        {
-            using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: FILE_READ_BUFFER_SIZE, useAsync: true))
-            {
-                XXH64.State state = new XXH64.State();
-                byte[] scratch = ArrayPool<byte>.Shared.Rent(FILE_READ_BUFFER_SIZE);
-                try
-                {
-                    while (stream.Position < stream.Length)
-                    {
-                        int readSize = await stream.ReadAsync(scratch, 0, FILE_READ_BUFFER_SIZE).ConfigureAwait(false);
-                        if (readSize <= 0)
-                        {
-                            break;
-                        }
-
-                        XXH64.Update(ref state, scratch.AsSpan(0, readSize));
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(scratch);
-                }
-
-                return XXH64.Digest(state);
-            }
-        }
+        
 
         private static void RecurseDirectoryAndProbeCompression(
             DirectoryInfo root,
@@ -307,7 +229,7 @@ namespace Sandbox
                     {
                         double ratio = GetZstCompressionRatio(file);
                         statsForThisFileType.Add(ratio);
-                        logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
+                        logger.LogFormat(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
                             "{0:F4} {1:F4} \"{2}\"",
                             statsForThisFileType.Mean, statsForThisFileType.StandardDeviation, fileExt);
                     }
@@ -384,7 +306,7 @@ namespace Sandbox
             }
 
             timer.Stop();
-            logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
+            logger.LogFormat(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
                 "Brotli {0:F2} MB/s, ratio {1:F3}",
                 (double)file.Length / 1024 / 1024 / timer.Elapsed.TotalSeconds, ratio);
         }
@@ -406,7 +328,7 @@ namespace Sandbox
             }
 
             timer.Stop();
-            logger.Log(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
+            logger.LogFormat(LogLevel.Std, DataPrivacyClassification.SystemMetadata,
                 "ZStd {0:F2} MB/s, ratio {1:F3}",
                 (double)file.Length / 1024 / 1024 / timer.Elapsed.TotalSeconds, ratio);
         }

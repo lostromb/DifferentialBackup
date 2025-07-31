@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 #nullable enable
-namespace DiffBackup.Schemas
+namespace DiffBackup.Schemas.Serialization
 {
     [System.CodeDom.Compiler.GeneratedCode("capnpc-csharp", "1.3.0.0"), TypeId(0x9bcc69c15083a79aUL)]
     public class FileInformation : ICapnpSerializable
@@ -18,9 +18,9 @@ namespace DiffBackup.Schemas
         {
             var reader = READER.create(arg_);
             Path = reader.Path;
-            NullableModTime = CapnpSerializable.Create<DiffBackup.Schemas.FileInformation.nullableModTime>(reader.NullableModTime);
-            NullableSize = CapnpSerializable.Create<DiffBackup.Schemas.FileInformation.nullableSize>(reader.NullableSize);
-            NullableHash = CapnpSerializable.Create<DiffBackup.Schemas.FileInformation.nullableHash>(reader.NullableHash);
+            NullableModTime = CapnpSerializable.Create<DiffBackup.Schemas.Serialization.FileInformation.nullableModTime>(reader.NullableModTime);
+            NullableSize = CapnpSerializable.Create<DiffBackup.Schemas.Serialization.FileInformation.nullableSize>(reader.NullableSize);
+            NullableHash = CapnpSerializable.Create<DiffBackup.Schemas.Serialization.FileInformation.nullableHash>(reader.NullableHash);
             applyDefaults();
         }
 
@@ -47,19 +47,19 @@ namespace DiffBackup.Schemas
             set;
         }
 
-        public DiffBackup.Schemas.FileInformation.nullableModTime? NullableModTime
+        public DiffBackup.Schemas.Serialization.FileInformation.nullableModTime? NullableModTime
         {
             get;
             set;
         }
 
-        public DiffBackup.Schemas.FileInformation.nullableSize? NullableSize
+        public DiffBackup.Schemas.Serialization.FileInformation.nullableSize? NullableSize
         {
             get;
             set;
         }
 
-        public DiffBackup.Schemas.FileInformation.nullableHash? NullableHash
+        public DiffBackup.Schemas.Serialization.FileInformation.nullableHash? NullableHash
         {
             get;
             set;

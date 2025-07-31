@@ -1,6 +1,5 @@
 ﻿namespace DiffBackup.Schemas
 {
-    using DiffBackup.Math;
     using Durandal.Common.MathExt;
     using System;
     using System.Collections.Generic;

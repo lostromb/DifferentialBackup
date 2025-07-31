@@ -6,9 +6,11 @@ namespace Sandbox
     using Durandal.Common.IO.Crc;
     using Durandal.Common.Logger;
     using Durandal.Common.MathExt;
+    using Durandal.Common.Utils;
     using Durandal.Common.Utils.NativePlatform;
     using Durandal.Extensions.Compression.Crc;
     using K4os.Hash.xxHash;
+    using Microsoft.Extensions.Logging;
     using System;
     using System.Buffers;
     using System.Collections.Generic;
@@ -27,7 +29,7 @@ namespace Sandbox
         //[Params(10, 500, 10000, 200000)]
         //public int SetLength { get; set; }
 
-        [Params(4096)]
+        [Params(1024)]
         public int ScratchSize { get; set; }
 
         public static byte[] TheFile = Array.Empty<byte>();
@@ -36,8 +38,8 @@ namespace Sandbox
         public void GlobalSetup()
         {
             NativePlatformUtils.SetGlobalResolver(new NativeLibraryResolverImpl());
-            CRC32CAccelerator.Apply(NullLogger.Singleton);
-            TheFile = File.ReadAllBytes(@"C:\Users\lostromb\Downloads\ZoomInstallerFull.exe");
+            AssemblyReflector.ApplyAccelerators(typeof(CRC32CAccelerator).Assembly, DebugLogger.Default);
+            TheFile = File.ReadAllBytes(@"D:\Backup Test\Complete\thedetroitstarwarsspectacular_tc.mp3");
             //_incrementalSet = new StatisticalSet(SetLength);
             //_valueSet = new double[SetLength];
             //for (int c = 0; c < SetLength; c++)
@@ -57,6 +59,7 @@ namespace Sandbox
             using (MemoryStream stream = new MemoryStream(TheFile, false))
             {
                 ICRC32C crc = CRC32CFactory.Create();
+                CRC32CState crcState = default(CRC32CState);
                 byte[] scratch = ArrayPool<byte>.Shared.Rent(ScratchSize);
                 try
                 {
@@ -68,7 +71,7 @@ namespace Sandbox
                             return;
                         }
 
-                        crc.Slurp(scratch.AsSpan(0, readSize));
+                        crc.Slurp(ref crcState, scratch.AsSpan(0, readSize));
                     }
                 }
                 finally
@@ -76,7 +79,7 @@ namespace Sandbox
                     ArrayPool<byte>.Shared.Return(scratch);
                 }
 
-                crc.Checksum.GetHashCode();
+                crcState.Checksum.GetHashCode();
             }
         }
 
